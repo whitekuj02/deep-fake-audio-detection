@@ -368,7 +368,7 @@ def produce_evaluation_file(
 
 #     running_loss /= num_total
 #     return running_loss
-
+        
 def train_epoch(
     trn_loader: DataLoader,
     domain_loader: DataLoader,
@@ -381,6 +381,7 @@ def train_epoch(
     running_loss = 0
     num_total = 0.0
     ii = 0
+    count = 1
     model.train()
 
     # set objective (Loss) functions
@@ -392,8 +393,7 @@ def train_epoch(
     for batch in tqdm_bar:
         batch_x = batch[0].to(device)
         batch_y = batch[1].to(device)
-        domain_labels = torch.zeros(batch_x.size(0), 2).to(device)
-        domain_labels[:, 0] = 1
+        domain_labels = torch.zeros(batch_x.size(0), 1).to(device)
 
         batch_size = batch_x.size(0)
         num_total += batch_size
@@ -405,7 +405,7 @@ def train_epoch(
         domain_loss = domain_criterion(domain_out, domain_labels)
         total_loss = batch_loss + domain_loss
         running_loss += total_loss.item() * batch_size
-        tqdm_bar.set_postfix(batch_loss=batch_loss.item(), domain_loss=domain_loss.item(), total_loss=total_loss.item())
+        tqdm_bar.set_postfix(count = count, batch_loss=batch_loss.item(), domain_loss=domain_loss.item(), total_loss=total_loss.item())
 
         optim.zero_grad()
         total_loss.backward()
@@ -418,38 +418,71 @@ def train_epoch(
         else:
             raise ValueError("scheduler error, got:{}".format(scheduler))
 
+        if count % 65 == 0:
+            tqdm_bar_ = tqdm(domain_loader, desc="mode=[DOMAIN_TRAIN]")
+            for batch in tqdm_bar_:
+                batch_x = batch[0].to(device)
+                domain_labels = torch.ones(batch_x.size(0), 1).to(device)
+
+                batch_size = batch_x.size(0)
+                num_total += batch_size
+                ii += 1
+
+                # 모델 예측
+                _, _, domain_out = model(batch_x, Freq_aug=str_to_bool(config["freq_aug"]))
+
+                # 도메인 분류 손실 계산
+                domain_loss = domain_criterion(domain_out, domain_labels)
+                total_loss = domain_loss
+
+                running_loss += total_loss.item() * batch_size
+                tqdm_bar_.set_postfix(domain_loss=domain_loss.item(), total_loss=total_loss.item())
+
+                optim.zero_grad()
+                total_loss.backward()
+                optim.step()
+
+                if config["optim_config"]["scheduler"] in ["cosine", "keras_decay"]:
+                    scheduler.step()
+                elif scheduler is None:
+                    pass
+                else:
+                    raise ValueError("scheduler error, got:{}".format(scheduler))
+            count = 1
+        count += 1
+
     # Training with domain_loader (includes only x)
-    for i in range(40):
-        tqdm_bar = tqdm(domain_loader, desc="mode=[DOMAIN_TRAIN]")
-        for batch in tqdm_bar:
-            batch_x = batch[0].to(device)
-            domain_labels = torch.zeros(batch_x.size(0), 2).to(device)
-            domain_labels[:, 1] = 1
+    # for i in range(40):
+    #     tqdm_bar = tqdm(domain_loader, desc="mode=[DOMAIN_TRAIN]")
+    #     for batch in tqdm_bar:
+    #         batch_x = batch[0].to(device)
+    #         domain_labels = torch.zeros(batch_x.size(0), 2).to(device)
+    #         domain_labels[:, 1] = 1
 
-            batch_size = batch_x.size(0)
-            num_total += batch_size
-            ii += 1
+    #         batch_size = batch_x.size(0)
+    #         num_total += batch_size
+    #         ii += 1
 
-            # 모델 예측
-            _, _, domain_out = model(batch_x, Freq_aug=str_to_bool(config["freq_aug"]))
+    #         # 모델 예측
+    #         _, _, domain_out = model(batch_x, Freq_aug=str_to_bool(config["freq_aug"]))
 
-            # 도메인 분류 손실 계산
-            domain_loss = domain_criterion(domain_out, domain_labels)
-            total_loss = domain_loss
+    #         # 도메인 분류 손실 계산
+    #         domain_loss = domain_criterion(domain_out, domain_labels)
+    #         total_loss = domain_loss
 
-            running_loss += total_loss.item() * batch_size
-            tqdm_bar.set_postfix(repeat=i, domain_loss=domain_loss.item(), total_loss=total_loss.item())
+    #         running_loss += total_loss.item() * batch_size
+    #         tqdm_bar.set_postfix(repeat=i, domain_loss=domain_loss.item(), total_loss=total_loss.item())
 
-            optim.zero_grad()
-            total_loss.backward()
-            optim.step()
+    #         optim.zero_grad()
+    #         total_loss.backward()
+    #         optim.step()
 
-            if config["optim_config"]["scheduler"] in ["cosine", "keras_decay"]:
-                scheduler.step()
-            elif scheduler is None:
-                pass
-            else:
-                raise ValueError("scheduler error, got:{}".format(scheduler))
+    #         if config["optim_config"]["scheduler"] in ["cosine", "keras_decay"]:
+    #             scheduler.step()
+    #         elif scheduler is None:
+    #             pass
+    #         else:
+    #             raise ValueError("scheduler error, got:{}".format(scheduler))
 
     running_loss /= num_total
     return running_loss

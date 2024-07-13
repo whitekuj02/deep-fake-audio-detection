@@ -536,9 +536,11 @@ class Model(nn.Module):
 
         self.out_layer = nn.Linear(5 * gat_dims[1], 2)
         self.domain_classifier = nn.Sequential(
-            nn.Linear(5 * gat_dims[1], 32),
+            nn.Linear(5 * gat_dims[1], 64),
             nn.ReLU(),
-            nn.Linear(32, 2)
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1),
         )
 
     def forward(self, x, Freq_aug=False):
