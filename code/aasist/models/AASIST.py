@@ -534,16 +534,25 @@ class Model(nn.Module):
         self.pool_hS2 = GraphPool(pool_ratios[2], gat_dims[1], 0.3)
         self.pool_hT2 = GraphPool(pool_ratios[2], gat_dims[1], 0.3)
 
-        self.out_layer = nn.Linear(5 * gat_dims[1], 2)
+        #self.out_layer = nn.Linear(5 * gat_dims[1], 2)
+        self.out_layer = nn.Sequential(
+            nn.Linear(5 * gat_dims[1], 64),
+            nn.BatchNorm1d(64),
+            nn.Dropout(0.2),
+            nn.ReLU(),
+            nn.Linear(64, 2)
+        )
         self.domain_classifier = nn.Sequential(
             nn.Linear(5 * gat_dims[1], 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.Linear(32, 1),
         )
 
-    def forward(self, x, Freq_aug=False):
+    def forward(self, x, alpha=0, Freq_aug=False):
 
         x = x.unsqueeze(1)
         x = self.conv_time(x, mask=Freq_aug)
@@ -622,7 +631,7 @@ class Model(nn.Module):
         last_hidden = self.drop(last_hidden)
         output = self.out_layer(last_hidden)
 
-        reverse_feature = ReverseLayerF.apply(last_hidden, 0.2)
+        reverse_feature = ReverseLayerF.apply(last_hidden, alpha)
         # Domain classification output
         domain_output = self.domain_classifier(reverse_feature)
 

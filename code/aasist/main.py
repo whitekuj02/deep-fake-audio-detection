@@ -45,6 +45,7 @@ def main(args: argparse.Namespace) -> None:
     optim_config = config["optim_config"]
     optim_config["epochs"] = config["num_epochs"]
     track = config["track"]
+    alpha = 0
     assert track in ["LA", "PA", "DF"], "Invalid track given"
     if "eval_all_best" not in config:
         config["eval_all_best"] = "True"
@@ -97,7 +98,7 @@ def main(args: argparse.Namespace) -> None:
         print("Model loaded : {}".format(config["model_path"]))
         print("Start evaluation...")
         produce_evaluation_file(eval_loader, model, device,
-                                eval_score_path, eval_trial_path)
+                                eval_score_path, eval_trial_path, alpha)
         calculate_tDCF_EER(cm_scores_file=eval_score_path,
                            asv_score_file=database_path /
                            config["asv_score_path"],
@@ -117,6 +118,8 @@ def main(args: argparse.Namespace) -> None:
     best_dev_eer = 1.
     best_val_score = 100.
     best_eval_tdcf = 1.
+    initial_alpha = 0.2  # 초기 alpha 값
+    max_alpha = 1.0  # 최종 alpha 값
     n_swa_update = 0  # number of snapshots of model to use in SWA
     f_log = open(model_tag / "metric_log.txt", "a")
     f_log.write("=" * 5 + "\n")
@@ -128,10 +131,11 @@ def main(args: argparse.Namespace) -> None:
     # Training
     for epoch in range(config["num_epochs"]):
         print("Start training epoch{:03d}".format(epoch))
+        alpha = initial_alpha + (max_alpha - initial_alpha) * (epoch / config["num_epochs"])
         running_loss = train_epoch(trn_loader, unlabel_loader, model, optimizer, device,
-                                   scheduler, config)
+                                   scheduler, config, alpha)
         produce_evaluation_file(dev_loader, model, device,
-                                metric_path/"val_pred.csv", dev_trial_path)
+                                metric_path/"val_pred.csv", dev_trial_path, alpha)
         val_score = dacon_score(
                         answer_path=database_path/"val.csv",
                         submission_path=metric_path/"val_pred.csv"
@@ -147,7 +151,7 @@ def main(args: argparse.Namespace) -> None:
         # do evaluation whenever best model is renewed
         if str_to_bool(config["eval_all_best"]):
             produce_evaluation_file(eval_loader, model, device,
-                                    eval_score_path/f"submission_ep{epoch}.csv", eval_trial_path)
+                                    eval_score_path/f"submission_ep{epoch}.csv", eval_trial_path, alpha)
             mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score)
 
         print("Saving epoch {} for swa".format(epoch))
@@ -165,7 +169,7 @@ def main(args: argparse.Namespace) -> None:
         )
         optim.bn_update(combined_loader, model, device=device)
     
-    produce_evaluation_file(eval_loader, model, device, eval_score_path/"submission_last.csv", eval_trial_path)
+    produce_evaluation_file(eval_loader, model, device, eval_score_path/"submission_last.csv", eval_trial_path, alpha)
     torch.save(model.state_dict(),
                model_save_path / "swa.pth")
 
@@ -295,7 +299,8 @@ def produce_evaluation_file(
     model,
     device: torch.device,
     save_path: str,
-    trial_path: str) -> None:
+    trial_path: str,
+    alpha) -> None:
     """Perform evaluation and save the score to a file"""
     model.eval()
     with open(trial_path, "r") as f_trl:
@@ -307,7 +312,7 @@ def produce_evaluation_file(
 
         batch_x = batch_x.to(device)
         with torch.no_grad():
-            _, batch_out, _ = model(batch_x)
+            _, batch_out, _ = model(batch_x, alpha)
             # print(batch_out)
             # batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
         
@@ -376,7 +381,8 @@ def train_epoch(
     optim: Union[torch.optim.SGD, torch.optim.Adam],
     device: torch.device,
     scheduler: torch.optim.lr_scheduler,
-    config: argparse.Namespace):
+    config: argparse.Namespace,
+    alpha):
     """Train the model for one epoch"""
     running_loss = 0
     num_total = 0.0
@@ -399,13 +405,13 @@ def train_epoch(
         num_total += batch_size
         ii += 1
 
-        _, batch_out, domain_out = model(batch_x, Freq_aug=str_to_bool(config["freq_aug"]))
+        _, batch_out, domain_out = model(batch_x, alpha, Freq_aug=str_to_bool(config["freq_aug"]))
 
         batch_loss = criterion(batch_out, batch_y)
         domain_loss = domain_criterion(domain_out, domain_labels)
         total_loss = batch_loss + domain_loss
         running_loss += total_loss.item() * batch_size
-        tqdm_bar.set_postfix(count = count, batch_loss=batch_loss.item(), domain_loss=domain_loss.item(), total_loss=total_loss.item())
+        tqdm_bar.set_postfix(alpha=alpha, count = count, batch_loss=batch_loss.item(), domain_loss=domain_loss.item(), total_loss=total_loss.item())
 
         optim.zero_grad()
         total_loss.backward()
@@ -429,7 +435,7 @@ def train_epoch(
                 ii += 1
 
                 # 모델 예측
-                _, _, domain_out = model(batch_x, Freq_aug=str_to_bool(config["freq_aug"]))
+                _, _, domain_out = model(batch_x, alpha, Freq_aug=str_to_bool(config["freq_aug"]))
 
                 # 도메인 분류 손실 계산
                 domain_loss = domain_criterion(domain_out, domain_labels)
