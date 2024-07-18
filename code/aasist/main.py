@@ -26,7 +26,8 @@ from torch.cuda.amp import GradScaler, autocast
 import itertools
 
 from data_utils import (Dataset_ASVspoof2019_train,
-                        Dataset_ASVspoof2019_devNeval, genSpoof_list)
+                        Dataset_ASVspoof2019_devNeval, genSpoof_list,
+                        add_white_noise, change_volume, time_stretch, spec_augment, perturbation)
 from evaluation import calculate_tDCF_EER
 from utils import create_optimizer, seed_worker, set_seed, str_to_bool
 from tqdm import tqdm
@@ -231,9 +232,12 @@ def get_loader(
                                             is_eval=False)
     print("no. training files:", len(file_train))
 
+    augmentations = [add_white_noise, change_volume, time_stretch, perturbation]
+
     train_set = Dataset_ASVspoof2019_train(list_IDs=file_train,
                                            labels=d_label_trn,
-                                           base_dir=trn_database_path)
+                                           base_dir=trn_database_path,
+                                           augmentations=augmentations)
     gen = torch.Generator()
     gen.manual_seed(seed)
     trn_loader = DataLoader(train_set,
@@ -267,7 +271,9 @@ def get_loader(
     print("no. unlabel files:", len(file_unlabel))
 
     unlabel_set = Dataset_ASVspoof2019_devNeval(list_IDs=file_unlabel,
-                                             base_dir=eval_database_path)
+                                             base_dir=eval_database_path,
+                                             unlabel = True,
+                                             augmentations=augmentations)
     unlabel_loader = DataLoader(unlabel_set,
                              batch_size=config["batch_size"],
                              shuffle=True,
@@ -525,7 +531,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed",
                         type=int,
-                        default=1234,
+                        default=42,
                         help="random seed (default: 1234)")
     parser.add_argument(
         "--eval",
