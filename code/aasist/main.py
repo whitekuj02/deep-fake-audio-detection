@@ -22,6 +22,8 @@ from torch.utils.data import DataLoader, ConcatDataset
 from torch.utils.tensorboard import SummaryWriter
 from torchcontrib.optim import SWA
 import torch.optim as optim
+from torch.cuda.amp import GradScaler, autocast
+import itertools
 
 from data_utils import (Dataset_ASVspoof2019_train,
                         Dataset_ASVspoof2019_devNeval, genSpoof_list)
@@ -119,7 +121,7 @@ def main(args: argparse.Namespace) -> None:
     best_val_score = 100.
     best_eval_tdcf = 1.
     initial_alpha = 0.2  # 초기 alpha 값
-    max_alpha = 1.0  # 최종 alpha 값
+    max_alpha = 0.8  # 최종 alpha 값
     n_swa_update = 0  # number of snapshots of model to use in SWA
     f_log = open(model_tag / "metric_log.txt", "a")
     f_log.write("=" * 5 + "\n")
@@ -159,29 +161,25 @@ def main(args: argparse.Namespace) -> None:
         n_swa_update += 1
 
     print("Start final evaluation")
-    epoch += 1
     if n_swa_update > 0:
         optimizer_swa.swap_swa_sgd()
-        combined_loader = DataLoader(
-            ConcatDataset([trn_loader.dataset, unlabel_loader.dataset]),
-            batch_size=trn_loader.batch_size,
-            shuffle=False
-        )
-        optim.bn_update(combined_loader, model, device=device)
+        combined_loader = itertools.chain(trn_loader, unlabel_loader)
+        optimizer_swa.bn_update(combined_loader, model, device=device)
     
     produce_evaluation_file(eval_loader, model, device, eval_score_path/"submission_last.csv", eval_trial_path, alpha)
+    mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score)
     torch.save(model.state_dict(),
                model_save_path / "swa.pth")
 
     print("Training / inference done.")
 
 
-ASSET_PATH = "/root/asset"
+ASSET_PATH = "/root/asset/ex7_18"
 
 def mask_zero(submission_path, ep, val_score):
 
     non_speeches = None
-    with open(os.path.join(ASSET_PATH, "nonspeech.csv")) as f:
+    with open(os.path.join(ASSET_PATH, "nonspeech2.csv")) as f:
         f.readline()
         non_speeches = [non_speech.strip() for non_speech in f.readlines()]
 
@@ -313,6 +311,7 @@ def produce_evaluation_file(
         batch_x = batch_x.to(device)
         with torch.no_grad():
             _, batch_out, _ = model(batch_x, alpha)
+            batch_out = nn.Sigmoid()(batch_out)
             # print(batch_out)
             # batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
         
@@ -391,71 +390,87 @@ def train_epoch(
     model.train()
 
     # set objective (Loss) functions
-    criterion = nn.BCELoss()
-    domain_criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()
+    domain_criterion = nn.BCEWithLogitsLoss()
+
+    # amp scaler
+    scaler = GradScaler()
+
+    train_iter = iter(trn_loader)
+    domain_iter = itertools.cycle(domain_loader)
 
     # Training with trn_loader (includes x and y)
-    tqdm_bar = tqdm(trn_loader, desc="mode=[TRAIN]")
-    for batch in tqdm_bar:
+    tqdm_bar = tqdm(zip(train_iter, domain_iter), total=len(trn_loader), desc="mode=[TRAIN]")
+    for batch, domain_batch in tqdm_bar:
         batch_x = batch[0].to(device)
         batch_y = batch[1].to(device)
+        domain_x = domain_batch[0].to(device)
         domain_labels = torch.zeros(batch_x.size(0), 1).to(device)
+        _domain_labels = torch.ones(domain_x.size(0), 1).to(device)
 
         batch_size = batch_x.size(0)
         num_total += batch_size
         ii += 1
 
-        _, batch_out, domain_out = model(batch_x, alpha, Freq_aug=str_to_bool(config["freq_aug"]))
+        with autocast():
+            _, batch_out, domain_out = model(batch_x, alpha, Freq_aug=str_to_bool(config["freq_aug"]))
+            _, _, _domain_out = model(domain_x, alpha, Freq_aug=str_to_bool(config["freq_aug"]))
 
-        batch_loss = criterion(batch_out, batch_y)
-        domain_loss = domain_criterion(domain_out, domain_labels)
-        total_loss = batch_loss + domain_loss
-        running_loss += total_loss.item() * batch_size
-        tqdm_bar.set_postfix(alpha=alpha, count = count, batch_loss=batch_loss.item(), domain_loss=domain_loss.item(), total_loss=total_loss.item())
+            batch_loss = criterion(batch_out, batch_y)
+            domain_loss = domain_criterion(domain_out, domain_labels)
+            _domain_loss = domain_criterion(_domain_out, _domain_labels)
 
-        optim.zero_grad()
-        total_loss.backward()
-        optim.step()
 
-        if config["optim_config"]["scheduler"] in ["cosine", "keras_decay"]:
+            total_loss = batch_loss + domain_loss + _domain_loss
+            running_loss += total_loss.item() * batch_size
+            tqdm_bar.set_postfix(alpha=alpha, batch_loss=batch_loss.item(), domain_0_loss=domain_loss.item(), domain_1_loss = _domain_loss.item(), total_loss=total_loss.item())
+
+            optim.zero_grad()
+            scaler.scale(total_loss).backward()
+            scaler.step(optim)
+            scaler.update()
+
+        if config["optim_config"]["scheduler"] in ["cosine", "keras_decay", "sgdr"]:
             scheduler.step()
         elif scheduler is None:
             pass
         else:
             raise ValueError("scheduler error, got:{}".format(scheduler))
 
-        if count % 65 == 0:
-            tqdm_bar_ = tqdm(domain_loader, desc="mode=[DOMAIN_TRAIN]")
-            for batch in tqdm_bar_:
-                batch_x = batch[0].to(device)
-                domain_labels = torch.ones(batch_x.size(0), 1).to(device)
+        # if count % 65 == 0:
+        #     tqdm_bar_ = tqdm(domain_loader, desc="mode=[DOMAIN_TRAIN]")
+        #     for batch in tqdm_bar_:
+        #         batch_x = batch[0].to(device)
+        #         domain_labels = torch.ones(batch_x.size(0), 1).to(device)
 
-                batch_size = batch_x.size(0)
-                num_total += batch_size
-                ii += 1
+        #         batch_size = batch_x.size(0)
+        #         num_total += batch_size
+        #         ii += 1
 
-                # 모델 예측
-                _, _, domain_out = model(batch_x, alpha, Freq_aug=str_to_bool(config["freq_aug"]))
+        #         with autocast():
+        #             # 모델 예측
+        #             _, _, domain_out = model(batch_x, alpha, Freq_aug=str_to_bool(config["freq_aug"]))
 
-                # 도메인 분류 손실 계산
-                domain_loss = domain_criterion(domain_out, domain_labels)
-                total_loss = domain_loss
+        #             # 도메인 분류 손실 계산
+        #             domain_loss = domain_criterion(domain_out, domain_labels)
+        #             total_loss = domain_loss
 
-                running_loss += total_loss.item() * batch_size
-                tqdm_bar_.set_postfix(domain_loss=domain_loss.item(), total_loss=total_loss.item())
+        #             running_loss += total_loss.item() * batch_size
+        #             tqdm_bar_.set_postfix(domain_loss=domain_loss.item(), total_loss=total_loss.item())
 
-                optim.zero_grad()
-                total_loss.backward()
-                optim.step()
+        #             optim.zero_grad()
+        #             scaler.scale(total_loss).backward()
+        #             scaler.step(optim)
+        #             scaler.update()
 
-                if config["optim_config"]["scheduler"] in ["cosine", "keras_decay"]:
-                    scheduler.step()
-                elif scheduler is None:
-                    pass
-                else:
-                    raise ValueError("scheduler error, got:{}".format(scheduler))
-            count = 1
-        count += 1
+        #         if config["optim_config"]["scheduler"] in ["cosine", "keras_decay", "sgdr"]:
+        #             scheduler.step()
+        #         elif scheduler is None:
+        #             pass
+        #         else:
+        #             raise ValueError("scheduler error, got:{}".format(scheduler))
+        #     count = 1
+        # count += 1
 
     # Training with domain_loader (includes only x)
     # for i in range(40):
@@ -510,7 +525,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed",
                         type=int,
-                        default=42,
+                        default=1234,
                         help="random seed (default: 1234)")
     parser.add_argument(
         "--eval",

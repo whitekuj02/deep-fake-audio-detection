@@ -6,6 +6,7 @@ import librosa
 import argparse
 import soundfile as sf
 import pandas as pd
+import torch
 
 from tqdm import tqdm
 from pydub import AudioSegment
@@ -67,7 +68,7 @@ def change_sample_rate(mode="train"):
     mode (str): The dataset mode, either 'train' or 'test'.
     """
     with open(os.path.join(BASE_DATA_PATH, f"{mode}.csv"), "r") as f, \
-         open(os.path.join(BASE_DATA_PATH, f"data16k/{mode}.csv"), "w") as nf:
+         open(os.path.join(BASE_DATA_PATH, f"data_origin/{mode}.csv"), "w") as nf:
 
         if mode == "train":
             nf.write("id,path,real,fake\n")
@@ -81,7 +82,7 @@ def change_sample_rate(mode="train"):
             splitted = line.strip().split(",")
             _id = splitted[0]
             tr_audio_path = os.path.join(BASE_DATA_PATH, f"{mode}/{_id}.ogg")
-            target_audio_path = os.path.join(BASE_DATA_PATH, f"data16k/{mode}/{_id}.wav")
+            target_audio_path = os.path.join(BASE_DATA_PATH, f"data_origin/{mode}/{_id}.wav")
             change_sr_wav(tr_audio_path, target_audio_path, target_sr=16000)
 
             if mode == "train":
@@ -117,11 +118,11 @@ def mix_train_dataset():
         audio1_name, audio1_label = data[idx1]
         audio2_name, audio2_label = data[idx2]
 
-        audio1_path = os.path.join(BASE_DATA_PATH, f"data16k/train/{audio1_name}.wav")
-        audio2_path = os.path.join(BASE_DATA_PATH, f"data16k/train/{audio2_name}.wav")
+        audio1_path = os.path.join(BASE_DATA_PATH, f"data_origin/train/{audio1_name}.wav")
+        audio2_path = os.path.join(BASE_DATA_PATH, f"data_origin/train/{audio2_name}.wav")
 
         combined_name = f"{audio1_name}-{audio2_name}"
-        combined_path = os.path.join(BASE_DATA_PATH, f"data16k/mix/{combined_name}.wav")
+        combined_path = os.path.join(BASE_DATA_PATH, f"data_origin/mix/{combined_name}.wav")
 
         combined_real = 1 if audio1_label == "real" or audio2_label == "real" else 0
         combined_fake = 1 if audio1_label == "fake" or audio2_label == "fake" else 0
@@ -132,7 +133,7 @@ def mix_train_dataset():
 
     # Save the combined dataset information
     train_mixed_df = pd.DataFrame(combined, columns=["audio_name", "audio_path", "real", "fake"])
-    train_mixed_df.to_csv(os.path.join(BASE_DATA_PATH, "data16k/mix.csv"), index=False)
+    train_mixed_df.to_csv(os.path.join(BASE_DATA_PATH, "data_origin/mix.csv"), index=False)
 
 def train_test_val(args):
     """
@@ -144,14 +145,14 @@ def train_test_val(args):
     data_labels = []
 
     # Read original training data
-    with open(os.path.join(BASE_DATA_PATH, "data16k/train.csv"), "r") as trf:
+    with open(os.path.join(BASE_DATA_PATH, "data_origin/train.csv"), "r") as trf:
         trf.readline()
         for line in trf.readlines():
             audio_name, path, real, fake = line.strip().split(",")
             data_labels.append((audio_name, path, real, fake))
 
     # Read mixed training data
-    with open(os.path.join(BASE_DATA_PATH, "data16k/mix.csv"), "r") as mxf:
+    with open(os.path.join(BASE_DATA_PATH, "data_origin/mix.csv"), "r") as mxf:
         mxf.readline()
         for line in mxf.readlines():
             audio_name, audio_path, real, fake = line.strip().split(",")
@@ -160,30 +161,30 @@ def train_test_val(args):
     random.shuffle(data_labels)
 
     # Rawboost processing
-    options = range(9) # [0, 8]
+    options = [0] # [0, 8]
     batch = len(data_labels) // len(options)
 
-    with open(os.path.join(BASE_DATA_PATH, "rawboost/train_all.csv"), "w") as trf:
+    with open(os.path.join(BASE_DATA_PATH, "rawboost_origin/train_all.csv"), "w") as trf:
         trf.write("id,path,real,fake\n")
-        for i in options:
-            start = batch * i
+        for idx, i in enumerate(options):
+            start = batch * idx
 
-            if i == len(options) - 1:
+            if idx == len(options):
                 current_batch = data_labels[start:]
             else:
                 current_batch = data_labels[start:start+batch]
 
             for audio_name, audio_path, real, fake in tqdm(current_batch, desc=f"RawBoost mode={i}"):
                 y, sr = librosa.load(audio_path, sr=None)
-                y = process_Rawboost_feature(y, sr, args, i)
+                #y = process_Rawboost_feature(y, sr, args, i)
 
-                output_path = os.path.join(BASE_DATA_PATH, f"rawboost/train_all/{audio_name}.wav")
+                output_path = os.path.join(BASE_DATA_PATH, f"rawboost_origin/train_all/{audio_name}.wav")
                 sf.write(output_path, y, sr, format="WAV")
                 trf.write(f"{audio_name},{output_path},{real},{fake}\n")
 
     # Split into train and validation sets
     rawboost_trn_data = []
-    with open(os.path.join(BASE_DATA_PATH, "rawboost/train_all.csv"), "r") as trf:
+    with open(os.path.join(BASE_DATA_PATH, "rawboost_origin/train_all.csv"), "r") as trf:
         trf.readline()
         for line in trf.readlines():
             _id, _path, _real, _fake = line.strip().split(",")
@@ -192,44 +193,44 @@ def train_test_val(args):
 
     trn_sz = int(len(rawboost_trn_data) * DATA_TRN_RATIO)
     trn_data = rawboost_trn_data[:trn_sz]
-    with open(os.path.join(BASE_DATA_PATH, "rawboost/train.csv"), "w") as trf:
+    with open(os.path.join(BASE_DATA_PATH, "rawboost_origin/train.csv"), "w") as trf:
         trf.write("id,path,real,fake\n")
         for _id, _path, _real, _fake in trn_data:
-            new_path = os.path.join(BASE_DATA_PATH, f"rawboost/train/{_id}.wav")
+            new_path = os.path.join(BASE_DATA_PATH, f"rawboost_origin/train/{_id}.wav")
             shutil.copyfile(_path, new_path)
             trf.write(f"{_id},{new_path},{_real},{_fake}\n")
 
     vld_data = rawboost_trn_data[trn_sz:]
-    with open(os.path.join(BASE_DATA_PATH, "rawboost/val.csv"), "w") as vdf:
+    with open(os.path.join(BASE_DATA_PATH, "rawboost_origin/val.csv"), "w") as vdf:
         vdf.write("id,path,real,fake\n")
         for _id, _path, _real, _fake in vld_data:
-            new_path = os.path.join(BASE_DATA_PATH, f"rawboost/val/{_id}.wav")
+            new_path = os.path.join(BASE_DATA_PATH, f"rawboost_origin/val/{_id}.wav")
             shutil.copyfile(_path, new_path)
             vdf.write(f"{_id},{new_path},{_real},{_fake}\n")
 
     # Process unlabeled_data data
-    with open(os.path.join(BASE_DATA_PATH, "data16k/unlabeled_data.csv"), "r") as tsf, \
-         open(os.path.join(BASE_DATA_PATH, "rawboost/unlabeled_data.csv"), "w") as rtsf:
+    with open(os.path.join(BASE_DATA_PATH, "data_origin/unlabeled_data.csv"), "r") as tsf, \
+         open(os.path.join(BASE_DATA_PATH, "rawboost_origin/unlabeled_data.csv"), "w") as rtsf:
 
         rtsf.write("id,path\n")
         tsf.readline()
 
         for line in tsf.readlines():
             _id, _path = line.strip().split(",")
-            new_path = os.path.join(BASE_DATA_PATH, f"rawboost/unlabeled_data/{_id}.wav")
+            new_path = os.path.join(BASE_DATA_PATH, f"rawboost_origin/unlabeled_data/{_id}.wav")
             shutil.copyfile(_path, new_path)
             rtsf.write(f"{_id},{new_path}\n")
 
     # Process test data
-    with open(os.path.join(BASE_DATA_PATH, "data16k/test.csv"), "r") as tsf, \
-         open(os.path.join(BASE_DATA_PATH, "rawboost/test.csv"), "w") as rtsf:
+    with open(os.path.join(BASE_DATA_PATH, "data_origin/test.csv"), "r") as tsf, \
+         open(os.path.join(BASE_DATA_PATH, "rawboost_origin/test.csv"), "w") as rtsf:
 
         rtsf.write("id,path\n")
         tsf.readline()
 
         for line in tsf.readlines():
             _id, _path = line.strip().split(",")
-            new_path = os.path.join(BASE_DATA_PATH, f"rawboost/test/{_id}.wav")
+            new_path = os.path.join(BASE_DATA_PATH, f"rawboost_origin/test/{_id}.wav")
             shutil.copyfile(_path, new_path)
             rtsf.write(f"{_id},{new_path}\n")
 
@@ -277,13 +278,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Create necessary directories
-    os.makedirs(os.path.join(BASE_DATA_PATH, "data16k/train"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DATA_PATH, "data16k/test"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DATA_PATH, "data16k/mix"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DATA_PATH, "data16k/unlabeled_data"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "data_origin/train"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "data_origin/test"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "data_origin/mix"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "data_origin/unlabeled_data"), exist_ok=True)
 
     # Step 1: Resample the audio files
-    print("1. Resampling..")
+    # print("1. Resampling..")
     change_sample_rate(mode="train")
     change_sample_rate(mode="test")
     change_sample_rate(mode="unlabeled_data")
@@ -294,9 +295,9 @@ if __name__ == "__main__":
 
     # Step 3: Apply RawBoost processing
     print("3. Make train / test / val dataset")
-    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost/train_all"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost/train"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost/val"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost/test"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost/unlabeled_data"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost_origin/train_all"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost_origin/train"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost_origin/val"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost_origin/test"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DATA_PATH, "rawboost_origin/unlabeled_data"), exist_ok=True)
     train_test_val(args)

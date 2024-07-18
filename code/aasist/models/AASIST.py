@@ -535,19 +535,11 @@ class Model(nn.Module):
         self.pool_hT2 = GraphPool(pool_ratios[2], gat_dims[1], 0.3)
 
         #self.out_layer = nn.Linear(5 * gat_dims[1], 2)
-        self.out_layer = nn.Sequential(
-            nn.Linear(5 * gat_dims[1], 64),
-            nn.BatchNorm1d(64),
-            nn.Dropout(0.2),
-            nn.ReLU(),
-            nn.Linear(64, 2)
-        )
+        self.out_layer = nn.Linear(5 * gat_dims[1], 2)
         self.domain_classifier = nn.Sequential(
             nn.Linear(5 * gat_dims[1], 64),
-            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.Linear(32, 1),
         )
@@ -635,7 +627,7 @@ class Model(nn.Module):
         # Domain classification output
         domain_output = self.domain_classifier(reverse_feature)
 
-        output = nn.Sigmoid()(output)
-        domain_output = nn.Sigmoid()(domain_output)
+        # output = nn.Sigmoid()(output)
+        # domain_output = nn.Sigmoid()(domain_output)
 
         return last_hidden, output, domain_output

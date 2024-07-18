@@ -75,7 +75,7 @@ def _get_optimizer(model_parameters, optim_config):
                                     lr=optim_config['base_lr'],
                                     momentum=optim_config['momentum'],
                                     weight_decay=optim_config['weight_decay'],
-                                    nesterov=optim_config['nesterov'])
+                                    nesterov=str_to_bool(optim_config['nesterov']))
     elif optimizer_name == 'adam':
         optimizer = torch.optim.Adam(model_parameters,
                                      lr=optim_config['base_lr'],
