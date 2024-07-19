@@ -1,16 +1,16 @@
-# SW 중심 대학 디지털 대회 AI 구문 10등 코드
+# SW 중심 대학 디지털 대회 AI 부문 10등 코드
 ## team : MOTA
 
 ## 시작
 sh model.sh
 
 ## 디렉토리
-./asset : csv 저장 폴더
-./code/aasist : aasist model
-./code/experiment : 전처리 후처리 .py
-./code/rawboost : augmentation
-./data : 데이터 저장
-./parameter.pth : ensemble 한 것 중 하나의 모델 파라미터
+./asset : csv 저장 폴더 <br />
+./code/aasist : aasist model <br />
+./code/experiment : 전처리 후처리 .py <br />
+./code/rawboost : augmentation <br />
+./data : 데이터 저장 <br />
+./parameter.pth : ensemble 한 것 중 하나의 모델 파라미터 <br />
 
 ## 대회 데이터 받기
 sh data.sh
