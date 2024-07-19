@@ -26,15 +26,6 @@ for csv_file in csv_files:
 ensemble_df['fake'] /= len(csv_files)
 ensemble_df['real'] /= len(csv_files)
 
-ASSET_PATH = "/root/asset/ex7_16"
-
-non_speeches = None
-with open(os.path.join(ASSET_PATH, "nonspeech2.csv")) as f:
-    f.readline()
-    non_speeches = [non_speech.strip() for non_speech in f.readlines()]
-
-ensemble_df.loc[ensemble_df['id'].isin(non_speeches), ['fake', 'real']] = 0.0
-
 # 결과를 CSV 파일로 저장
 ensemble_df.to_csv(output_csv, index=False)
 print(f"Ensemble result saved to {output_csv}")

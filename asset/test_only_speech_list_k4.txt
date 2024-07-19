@@ -1,5 +1,0 @@
-/root/data/test/TEST_00006.ogg --> ['Typewriter', 'Inside, small room', 'Scissors', 'Typing', 'Computer keyboard']
-/root/data/test/TEST_00040.ogg --> ['Door', 'Tools', 'Rub', 'Wood', 'Sawing']
-/root/data/test/TEST_00056.ogg --> ['Fixed-wing aircraft, airplane', 'Helicopter', 'Propeller, airscrew', 'Aircraft', 'Vehicle']
-/root/data/test/TEST_00057.ogg --> ['Livestock, farm animals, working animals', 'Goat', 'Animal', 'Bleat', 'Sheep']
-/root/data/test/TEST_00061.ogg --> ['Sneeze', 'Pant', 'Breathing', 'Snort', 'Gasp']

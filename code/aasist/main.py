@@ -175,25 +175,26 @@ def main(args: argparse.Namespace) -> None:
     print("Training / inference done.")
 
 
-ASSET_PATH = "/root/asset/ex7_19"
+ASSET_PATH = "/root/asset"
 
 def mask_zero(submission_path, ep, val_score):
 
     non_speeches = None
-    with open(os.path.join(ASSET_PATH, "new_masking.csv")) as f:
+    with open(os.path.join(ASSET_PATH, "infer_masking.csv")) as f:
         f.readline()
         non_speeches = [non_speech.strip() for non_speech in f.readlines()]
 
-    with open(os.path.join(submission_path), "r") as f, \
-         open(os.path.join(ASSET_PATH, "masked_submission-ep{}-val{}.csv".format(ep,val_score)), "w") as wf:
-        
-        wf.write(f.readline())
-        for line in f.readlines():
-            _id, _fake, _real = line.strip().split(",")
-            if _id in non_speeches:
-                _fake, _real = 0., 0.
-            wf.write("{},{},{}\n".format(_id, _fake, _real))
-        wf.close()
+    if ep > 5 and ep <= 10:
+        with open(os.path.join(submission_path), "r") as f, \
+             open(os.path.join(ASSET_PATH, "best/masked_submission-ep{}-val{}.csv".format(ep,val_score)), "w") as wf:
+            
+            wf.write(f.readline())
+            for line in f.readlines():
+                _id, _fake, _real = line.strip().split(",")
+                if _id in non_speeches:
+                    _fake, _real = 0., 0.
+                wf.write("{},{},{}\n".format(_id, _fake, _real))
+            wf.close()
 
     print("Masking (post-processing) done!")
 
