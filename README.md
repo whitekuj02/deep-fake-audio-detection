@@ -24,5 +24,15 @@ sh data.sh
 ### 주요 라이브러리 버전 
 pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 torchaudio==2.0.1+cu118 --index-url https://download.pytorch.org/whl/cu118
 
+## 사전 학습 모델
+AST (MIT/ast-finetuned-audioset-10-10-0.4593) : masking <br />
+https://huggingface.co/MIT/ast-finetuned-audioset-10-10-0.4593 <br />
 
+DeepFilterNet : Denoising <br />
+https://github.com/Rikorose/DeepFilterNet <br />
 
+## 사용 tech
+augmentation : Rawboost, mix train <br />
+model : AASIST, DANN <br />
+pre-processing : DeepFilterNet <br />
+post-processing : AST <br />
