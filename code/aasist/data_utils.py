@@ -115,15 +115,15 @@ def perturbation(x, sigma=0.003):
     """Apply a small perturbation to the signal."""
     noise = np.random.normal(0, sigma, x.shape)
     return x + noise
+
 class Dataset_ASVspoof2019_train(Dataset):
-    def __init__(self, list_IDs, labels, base_dir, augmentations=None):
+    def __init__(self, list_IDs, labels, base_dir):
         """self.list_IDs	: list of strings (each string: utt key),
            self.labels      : dictionary (key: utt key, value: label integer)"""
         self.list_IDs = list_IDs
         self.labels = labels
         self.base_dir = base_dir
         self.cut = 80000 # take ~4 sec audio (64600 samples)
-        self.augmentations = augmentations
 
     def __len__(self):
         return len(self.list_IDs)
@@ -132,25 +132,18 @@ class Dataset_ASVspoof2019_train(Dataset):
         key = self.list_IDs[index]
         X, _ = sf.read(key)
         X_pad = pad_random(X, self.cut)
-
-        if self.augmentations:
-            for augmentation in self.augmentations:
-                X_pad = augmentation(X_pad)
-
         x_inp = Tensor(X_pad)
         y = Tensor(self.labels[key])
         return x_inp, y
 
 
 class Dataset_ASVspoof2019_devNeval(Dataset):
-    def __init__(self, list_IDs, base_dir, unlabel=False, augmentations=None):
+    def __init__(self, list_IDs, base_dir):
         """self.list_IDs	: list of strings (each string: utt key),
         """
         self.list_IDs = list_IDs
         self.base_dir = base_dir
         self.cut = 80000  # take ~4 sec audio (64600 samples)
-        self.unlabel = unlabel
-        self.augmentations = augmentations
 
     def __len__(self):
         return len(self.list_IDs)
@@ -159,9 +152,5 @@ class Dataset_ASVspoof2019_devNeval(Dataset):
         key = self.list_IDs[index]
         X, _ = sf.read(key)
         X_pad = pad(X, self.cut)
-
-        if self.unlabel:
-            for augmentation in self.augmentations:
-                X_pad = augmentation(X_pad)
         x_inp = Tensor(X_pad)
         return x_inp, key

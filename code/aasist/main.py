@@ -148,8 +148,8 @@ def main(args: argparse.Namespace) -> None:
         writer.add_scalar("loss", running_loss, epoch)
         writer.add_scalar("val_score", val_score, epoch)
 
-        # torch.save(model.state_dict(),
-        #             model_save_path / "epoch_{}_{:03.3f}.pth".format(epoch, val_score))
+        torch.save(model.state_dict(),
+                    model_save_path / "epoch_{}_{:03.3f}.pth".format(epoch, val_score))
 
         # do evaluation whenever best model is renewed
         if str_to_bool(config["eval_all_best"]):
@@ -175,12 +175,12 @@ def main(args: argparse.Namespace) -> None:
     print("Training / inference done.")
 
 
-ASSET_PATH = "/root/asset/ex7_18"
+ASSET_PATH = "/root/asset/ex7_19"
 
 def mask_zero(submission_path, ep, val_score):
 
     non_speeches = None
-    with open(os.path.join(ASSET_PATH, "nonspeech2.csv")) as f:
+    with open(os.path.join(ASSET_PATH, "new_masking.csv")) as f:
         f.readline()
         non_speeches = [non_speech.strip() for non_speech in f.readlines()]
 
@@ -232,12 +232,12 @@ def get_loader(
                                             is_eval=False)
     print("no. training files:", len(file_train))
 
-    augmentations = [add_white_noise, change_volume, time_stretch, perturbation]
+    # augmentations = [add_white_noise, change_volume, time_stretch, perturbation]
+    
 
     train_set = Dataset_ASVspoof2019_train(list_IDs=file_train,
                                            labels=d_label_trn,
-                                           base_dir=trn_database_path,
-                                           augmentations=augmentations)
+                                           base_dir=trn_database_path)
     gen = torch.Generator()
     gen.manual_seed(seed)
     trn_loader = DataLoader(train_set,
@@ -271,9 +271,7 @@ def get_loader(
     print("no. unlabel files:", len(file_unlabel))
 
     unlabel_set = Dataset_ASVspoof2019_devNeval(list_IDs=file_unlabel,
-                                             base_dir=eval_database_path,
-                                             unlabel = True,
-                                             augmentations=augmentations)
+                                             base_dir=eval_database_path)
     unlabel_loader = DataLoader(unlabel_set,
                              batch_size=config["batch_size"],
                              shuffle=True,
