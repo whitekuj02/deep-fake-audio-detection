@@ -17,7 +17,7 @@ df_list.pop(0)
 def mask_zero(submission_path, diff_df_1, masked_file_path, output_path):
 
     # non_speeches 목록 로드
-    with open("./new_masking.csv") as f:
+    with open("/root/asset/infer_masking.csv") as f:
         f.readline()  # 헤더 건너뜀
         non_speeches = {line.strip() for line in f.readlines()}
 
