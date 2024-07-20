@@ -72,8 +72,8 @@ post-processing : AST <br />
 
 ## 학습 데이터 셋 설명 :
 
-./data/data16k : 모든 기존 데이터의 sample rate 32k를 16k로 resampling 한 것<br />
-./data/rawboost : augmentation 작업을 마친 데이터 셋 <br />
+./data/data16k : 모든 기존 데이터의 sample rate 32k를 16k로 resampling 한 것 (.wav)<br />
+./data/rawboost : augmentation 작업을 마친 데이터 셋 (.wav)<br />
 ./data/rawboost/train_all : original + mixing + Rawboost (algorithm 0~8) 의 모든 데이터 ( 데이터 개수 : 105438 => rawboost(original(55438) + mix(55438)) , sampling rate : 16k ) <br />
 ./data/rawboost/train : train_all에서 80% sampling (데이터 개수 : 84350) <br />
 ./data/rawboost/val :  train_all에서 train 데이터를 제외한 나머지 20%의 데이터 (데이터 개수 :21088) <br />
