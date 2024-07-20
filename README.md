@@ -90,7 +90,7 @@ post-processing : AST <br />
 
 
 ## AASIST.conf 파일에서 필요한 것:
-database_path : 데이터 경로 (기본 ./data/rawboost) <br />
+database_path : 데이터 경로 (기본 /root/data/rawboost) <br />
 asset_path : 결과물 저장 루트 (기본 /root/asset) <br />
 batch_size : 배치 사이즈 (기본 32) <br />
 num_epochs : 에폭 횟수 (기본 20) <br />
