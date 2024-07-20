@@ -161,7 +161,7 @@ def train_test_val(args):
     random.shuffle(data_labels)
 
     # Rawboost processing
-    options = [0] # [0, 8]
+    options = range(9) # [0, 8]
     batch = len(data_labels) // len(options)
 
     with open(os.path.join(BASE_DATA_PATH, "rawboost/train_all.csv"), "w") as trf:

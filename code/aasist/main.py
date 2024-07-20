@@ -155,7 +155,7 @@ def main(args: argparse.Namespace) -> None:
         if str_to_bool(config["eval_all_best"]):
             produce_evaluation_file(eval_loader, model, device,
                                     eval_score_path/f"submission_ep{epoch}.csv", eval_trial_path, alpha)
-            mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score)
+            mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score, config)
 
         print("Saving epoch {} for swa".format(epoch))
         optimizer_swa.update_swa()
@@ -168,16 +168,16 @@ def main(args: argparse.Namespace) -> None:
         optimizer_swa.bn_update(combined_loader, model, device=device)
     
     produce_evaluation_file(eval_loader, model, device, eval_score_path/"submission_last.csv", eval_trial_path, alpha)
-    mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score)
+    mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score, config)
     torch.save(model.state_dict(),
                model_save_path / "swa.pth")
 
     print("Training / inference done.")
 
 
-ASSET_PATH = "/root/asset"
-
-def mask_zero(submission_path, ep, val_score):
+def mask_zero(submission_path, ep, val_score, config):
+    
+    ASSET_PATH = config["asset_path"]
 
     non_speeches = None
     with open(os.path.join(ASSET_PATH, "infer_masking.csv")) as f:
