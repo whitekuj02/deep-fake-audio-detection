@@ -14,6 +14,40 @@ sh model.sh
 ## 대회 데이터 받기
 sh data.sh
 
+## 대회 데이터 셋 설명
+train <br />
+55438개의 학습 가능한 32kHz 로 샘플링 된 오디오(ogg) 샘플 <br />
+방음 환경에서 녹음된 진짜 사람 목소리(Real) 샘플과 방음 환경을 가정한 가짜 생성 목소리(Fake) 샘플 <br />
+각 샘플 당 한명의 진짜 혹은 가짜 목소리가 존재 <br />
+
+
+test <br />
+50000개의 5초 분량의 32kHz 로 샘플링 된 평가용 오디오(ogg) 샘플 <br />
+TEST_00000.ogg ~ TEST_49999.png <br />
+방음 환경 혹은 방음 환경이 아닌 환경 모두 존재하며, 각 샘플 당 최대 2명의 목소리(진짜 혹은 가짜)가 존재 <br />
+
+
+unlabeled_data <br />
+1264개의 5초 분량의 학습 가능한 32kHz 로 샘플링 된 Unlabeled 오디오(ogg) 샘플 <br />
+평가용 오디오(ogg) 샘플과 동일한 환경이지만 Label은 제공되지 않음 <br />
+
+
+train.csv <br />
+id : 오디오 샘플 ID <br />
+path : 오디오 샘플 경로 <br />
+label : 진짜(real) 혹은 가짜(fake) 음성의 Class <br />
+
+
+test.csv <br />
+id : 평가용 오디오 샘플 ID <br />
+path : 평가용 오디오 샘플 경로 <br />
+
+
+sample_submission.csv - 제출 양식 <br />
+id : 평가용 오디오 샘플 ID <br />
+fake : 해당 샘플에 가짜 목소리가 존재할 확률 (0~1) <br />
+real : 해당 샘플에 진짜 목소리가 존재할 확률 (0~1) <br />
+
 ## 데이터 디렉토리 변경
 ./code/aasist/config/AASIST.conf 에서 database_path 수정
 
@@ -36,11 +70,11 @@ model : AASIST, DANN <br />
 pre-processing : DeepFilterNet <br />
 post-processing : AST <br />
 
-## 데이터 셋 설명 :
+## 학습 데이터 셋 설명 :
 
-./data/data16k : 모든 기존 데이터의 sample rate 32k를 16k로 resampling 한 것 <br />
+./data/data16k : 모든 기존 데이터의 sample rate 32k를 16k로 resampling 한 것<br />
 ./data/rawboost : augmentation 작업을 마친 데이터 셋 <br />
-./data/rawboost/train_all : original + mixing + Rawboost (algorithm 0~8) 의 모든 데이터 ( 데이터 개수 : 105438, sampling rate : 16k ) <br />
+./data/rawboost/train_all : original + mixing + Rawboost (algorithm 0~8) 의 모든 데이터 ( 데이터 개수 : 105438 => rawboost(original(55438) + mix(55438)) , sampling rate : 16k ) <br />
 ./data/rawboost/train : train_all에서 80% sampling (데이터 개수 : 84350) <br />
 ./data/rawboost/val :  train_all에서 train 데이터를 제외한 나머지 20%의 데이터 (데이터 개수 :21088) <br />
 ./data/rawboost/unlabeled_data : 기존의 1264개의 unlabeled_data를 16k로 샘플링 한 것 <br />
