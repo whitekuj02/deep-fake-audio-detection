@@ -84,6 +84,6 @@ optim_config : 옵티마이저와 스케줄링 설정 <br />
         "Tmult" : 1 <br />
 } <br />
 
-모델 파라미터 : <br />
+## 모델 파라미터 : <br />
 ./parameter.pth  <br />
 ( 약 0.22 ~ 0.24 test score (6~10 epochs) :  ensemble 로 0.19 가능 ) <br />
