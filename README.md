@@ -45,8 +45,8 @@ path : 평가용 오디오 샘플 경로 <br />
 
 sample_submission.csv - 제출 양식 <br />
 id : 평가용 오디오 샘플 ID <br />
-fake : 해당 샘플에 가짜 목소리가 존재할 확률 (0~1) <br />
-real : 해당 샘플에 진짜 목소리가 존재할 확률 (0~1) <br />
+fake : 해당 샘플에 가짜 목소리가 존재할 확률 (0 부터 1 사이) <br />
+real : 해당 샘플에 진짜 목소리가 존재할 확률 (0 부터 1 사이) <br />
 
 ## 데이터 디렉토리 변경
 ./code/aasist/config/AASIST.conf 에서 database_path 수정
