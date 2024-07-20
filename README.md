@@ -29,13 +29,13 @@
 
 **< Audio augmentation process >**
 
-<img src="./asset/rawboost.png" width="70%">
+<img src="./asset/rawboost.png" width="90%">
 
 <br>
 
 **< AASIST + DANN Training / Inferencing >**
 
-<img src="./asset/aasist-dann.png" width="70%">
+<img src="./asset/aasist-dann.png" width="90%">
 
 </div>
 
@@ -45,13 +45,13 @@
 
 **< Audio denoising process >**
 
-<img src="./asset/denoising.png" width="70%">
+<img src="./asset/denoising.png" width="90%">
 
 <br>
 
 **< AASIST Training / Inferencing >**
 
-<img src="./asset/aasist-2.png" width="70%">
+<img src="./asset/aasist-2.png" width="90%">
 
 </div>
 
