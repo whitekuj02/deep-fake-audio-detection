@@ -103,7 +103,7 @@ optim_config : 옵티마이저와 스케줄링 설정 <br />
         "betas": [0.9, 0.999], <br />
         "weight_decay": 0.0001, <br />
         "scheduler": "cosine" <br />
-}, <br />
+} (기본), <br />
 { <br />
         "optimizer": "sgd", <br />
         "amsgrad": "False", <br />
