@@ -3,11 +3,11 @@ import pandas as pd
 import numpy as np
 
 # 경로 설정
-csv_dir = "/root/asset/best"
+csv_dir = "/root/asset"
 output_csv = "/root/asset/ensemble/ensemble_result.csv"
 
 # CSV 파일 목록 가져오기
-csv_files = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir) if f.endswith('.csv')]
+csv_files = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir) if f.startswith('masked_submission') and f.endswith('.csv')]
 
 # 첫 번째 CSV 파일 읽기
 ensemble_df = pd.read_csv(csv_files[0])

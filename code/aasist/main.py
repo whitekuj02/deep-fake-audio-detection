@@ -186,7 +186,7 @@ def mask_zero(submission_path, ep, val_score, config):
 
     if ep > 5 and ep <= 10:
         with open(os.path.join(submission_path), "r") as f, \
-             open(os.path.join(ASSET_PATH, "best/masked_submission-ep{}-val{}.csv".format(ep,val_score)), "w") as wf:
+             open(os.path.join(ASSET_PATH, "masked_submission-ep{}-val{}.csv".format(ep,val_score)), "w") as wf:
             
             wf.write(f.readline())
             for line in f.readlines():
