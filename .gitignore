@@ -14,3 +14,7 @@
 /hasbooted
 /.conda
 /.ipython
+
+# python
+__pycache__
+
