@@ -22,7 +22,7 @@ def aasist_train(args):
     val_dataset = metadata[train_index:]
 
     for mode, dataset in zip(["train", "val"], [trn_dataset, val_dataset]):
-        with open(os.path.join(args.base_data_path, f"aasist/denoise/{mode}.csv", "w")) as f:
+        with open(os.path.join(args.base_data_path, f"aasist/denoise/{mode}.csv"), "w") as f:
             f.write("id,path,real,fake\n")
             for id, path, real, fake in dataset:
                 f.write(f"{id},{path},{real},{fake}\n")

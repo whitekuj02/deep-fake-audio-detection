@@ -48,10 +48,10 @@ def resample_audio(args, mode):
                 label = line.strip().split(",")[2]
                 real = 1 if label == "real" else 0
                 fake = 1 if label == "fake" else 0
-                f.write(f"{audio_id},{output_path},{real},{fake}\n")
+                wf.write(f"{audio_id},{output_path},{real},{fake}\n")
 
             elif mode == "test":
-                f.write(f"{audio_id},{output_path}\n")
+                wf.write(f"{audio_id},{output_path}\n")
 
 
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ rm /root/open.zip
 mkdir -p "${base_data_path}/data16k_denoised/train" \
          "${base_data_path}/data16k_denoised/test" \
          "${base_data_path}/data16k_denoised/val" \
+         "${base_data_path}/data16k_denoised/unlabeled_data" \
          "${base_data_path}/data16k_rawboost/train" \
          "${base_data_path}/data16k/train" \
          "${base_data_path}/data16k/test" \
