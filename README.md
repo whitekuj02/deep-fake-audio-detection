@@ -59,17 +59,27 @@
 <br />
 
 ## 2. 시작
+
 ```bash
 # 환경 설정, 데이터셋 다운로드 및 준비
-sh /code/prepare_data/data-1.sh
-sh /code/prepare_data/data-2.sh
+sh /code/prepare_data/download.sh
 
-# [Rawboost] AASIST 학습 및 추론
-sh model.sh
+# python 가상환경 생성
+conda create -n mota python=3.10.13 -y
+conda activate mota
+
+# 데이터 전처리
+sh /code/prepare_data/run.sh
+
+# [Rawboost + DANN] AASIST 학습 및 추론
+sh /code/2_aasist_rawboost/run.sh
 
 # [Denoise] AASIST2 학습 및 추론
 # (결과: /code/aasist2/output/submission.csv)
-sh /code/aasist2/run.sh
+sh /code/3_aasist_denoise/run.sh
+
+# 앙상블
+sh /code/4_ensemble/run.sh
 ```
 
 
@@ -85,7 +95,7 @@ sh /code/aasist2/run.sh
 <br>
 
 ```text
-deepfilternet
+deepfilternet            0.5.6
 librosa                  0.10.2.post1
 soundfile                0.12.1
 pandas                   2.2.2
