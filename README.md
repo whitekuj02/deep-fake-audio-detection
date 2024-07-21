@@ -130,6 +130,9 @@ https://huggingface.co/MIT/ast-finetuned-audioset-10-10-0.4593
 2. DeepFilterNet : Denoising  
 https://github.com/Rikorose/DeepFilterNet
 
+3. AASIST : pretrained models  
+https://github.com/clovaai/aasist
+
 <br>
 
 ## 5. 사용된 기법
