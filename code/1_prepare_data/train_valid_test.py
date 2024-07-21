@@ -33,8 +33,6 @@ def aasist_test(args):
         os.path.join(args.base_data_path, "aasist/denoise/test.csv")
     )
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_data_path", type=str, default="/root/data")
