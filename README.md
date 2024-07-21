@@ -25,34 +25,37 @@
 
 ### AASIST with augmented audio (rawboost, DANN)
 
+> *Audio augmentation process*
+
 <div align="center">
-
-**< Audio augmentation process >**
-
-<img src="./asset/rawboost.png" width="90%">
+    <img src="./asset/rawboost.png" width="90%">
+</div>
 
 <br>
 
-**< AASIST + DANN Training / Inferencing >**
+> *AASIST + DANN Training / Inferencing*
 
-<img src="./asset/aasist-dann.png" width="90%">
-
+<div align="center">
+    <img src="./asset/aasist-dann.png" width="90%">
 </div>
+
+<br>
 
 ### AASIST with denoised audio (deepfilternet)
 
+
+> *Audio denoising process*
+
 <div align="center">
-
-**< Audio denoising process >**
-
-<img src="./asset/denoising.png" width="90%">
+    <img src="./asset/denoising.png" width="90%">
+</div>
 
 <br>
 
-**< AASIST Training / Inferencing >**
+> *AASIST Training / Inferencing*
 
-<img src="./asset/aasist-2.png" width="90%">
-
+<div align="center">
+    <img src="./asset/aasist-2.png" width="90%">
 </div>
 
 
