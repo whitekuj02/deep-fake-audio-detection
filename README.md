@@ -139,7 +139,7 @@ https://github.com/clovaai/aasist
 - 데이터 증강 : Rawboost, Audio mixing (overlapping) <br />
 - 모델 : AASIST, DANN(Domain Adversarial Neural Network) <br />
 - 데이터 전처리 : DeepFilterNet <br />
-- 결과 후처리 : AST(Audio Spectrogram Trnasformer) <br />
+- 결과 후처리 : AST(Audio Spectrogram Transformer) <br />
 
 <br>
 
