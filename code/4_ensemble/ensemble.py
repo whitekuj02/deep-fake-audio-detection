@@ -25,8 +25,16 @@ def main(args):
     ensemble_df['fake'] /= len(csv_files)
     ensemble_df['real'] /= len(csv_files)
 
+    # masking
+    nospeech_ids = []
+    with open("../../asset/masking.csv") as f:
+        f.readline()
+        nospeech_ids = [line.strip() for line in f.readlines()]
+
+    ensemble_df.loc[ensemble_df['id'].isin(nospeech_ids), ['fake', 'real']] = 0.0
+
     # 결과를 CSV 파일로 저장
-    ensemble_df.to_csv(os.path.join(args.output_path, "ensemble.csv"), index=False)
+    ensemble_df.to_csv(os.path.join(args.output_path, "ensemble_aasist_rawboost.csv"), index=False)
 
 
 if __name__ == '__main__':
