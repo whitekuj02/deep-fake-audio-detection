@@ -60,28 +60,41 @@
 
 ## 2. 시작
 
+1. 데이터셋 다운로드
 ```bash
-# 환경 설정, 데이터셋 다운로드 및 준비
 sh /code/prepare_data/download.sh
-
-# python 가상환경 생성
-conda create -n mota python=3.10.13 -y
-conda activate mota
-
-# 데이터 전처리
-sh /code/prepare_data/run.sh
-
-# [Rawboost + DANN] AASIST 학습 및 추론
-sh /code/2_aasist_rawboost/run.sh
-
-# [Denoise] AASIST2 학습 및 추론
-# (결과: /code/aasist2/output/submission.csv)
-sh /code/3_aasist_denoise/run.sh
-
-# 앙상블
-sh /code/4_ensemble/run.sh
 ```
 
+2. Anaconda 가상환경 생성
+
+```bash
+conda create -n mota python=3.10.13 -y
+conda activate mota
+```
+
+3. 데이터 전처리
+
+```bash
+sh /code/prepare_data/run.sh
+```
+
+4. AASIST + DANN + Rawboost
+   
+```bash
+sh /code/2_aasist_rawboost/run.sh
+```
+
+5. AASIST + Denoise
+
+```bash
+sh /code/3_aasist_denoise/run.sh
+```
+
+6. 앙상블
+
+```bash
+sh /code/4_ensemble/run.sh
+```
 
 <br>
 
