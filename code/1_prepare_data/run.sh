@@ -1,7 +1,7 @@
 # Install additional Python packages
 set -e
 
-pip install deepfilternet librosa soundfile pandas pydub torchcontrib tensorboard torchaudio tqdm
+pip install deepfilternet librosa soundfile pandas pydub torchcontrib tensorboard torchaudio tqdm transformers
 
 python resample.py --base_data_path "/root/data" --sr 16000
 
