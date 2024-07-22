@@ -31,33 +31,32 @@ class AudioDataset(Dataset):
 
 
 # Inference function
-def inference_batch(model, dataloader, k=5):
+def inference_batch(model, dataloader):
     non_speeches = []
 
-    with open("/root/asset/test_only_speech_list_k5.txt", "w") as tf:
-        for batch, paths in tqdm(dataloader):
-            batch = batch.to('cuda:0')
-            with torch.no_grad():
-                outputs = model(input_values=batch).logits
+    for batch, paths in tqdm(dataloader):
+        batch = batch.to('cuda:0')
+        with torch.no_grad():
+            outputs = model(input_values=batch).logits
 
-            for i, logits in enumerate(outputs):
-                logits = logits.squeeze()
+        for i, logits in enumerate(outputs):
+            logits = logits.squeeze()
 
-                #list_of_lists = [str(tensor.tolist()) for tensor in sorted(logits)[-k:]]
-                sorted_indices = torch.argsort(logits)
+            #list_of_lists = [str(tensor.tolist()) for tensor in sorted(logits)[-k:]]
+            sorted_indices = torch.argsort(logits)
 
-                # 0의 정렬된 인덱스에서의 위치를 찾음
-                sorted_position = (sorted_indices == 0).nonzero(as_tuple=True)[0].item()
+            # 0의 정렬된 인덱스에서의 위치를 찾음
+            sorted_position = (sorted_indices == 0).nonzero(as_tuple=True)[0].item()
 
-                # 뒤에서 몇 번째인지 계산
-                reverse_position = len(logits) - sorted_position - 1
-                zero_logit_value = logits[0].item()
+            # 뒤에서 몇 번째인지 계산
+            reverse_position = len(logits) - sorted_position - 1
+            zero_logit_value = logits[0].item()
 
-                if reverse_position > 2 and zero_logit_value <= -2.5:
-                    audio_id = paths[i].split("/")[-1][:-4]
-                    non_speeches.append(audio_id)
-                    
-    return non_speeches
+            if reverse_position > 2 and zero_logit_value <= -2.5:
+                audio_id = paths[i].split("/")[-1][:-4]
+                non_speeches.append(audio_id)
+    
+    return sorted(non_speeches)
 
 
 def main(args):
@@ -73,7 +72,7 @@ def main(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
 
     # Run inference
-    non_speeches = inference_batch(model, dataloader, k=5, with_logit=True)
+    non_speeches = inference_batch(model, dataloader)
 
     # Create a DataFrame
     pd.DataFrame(non_speeches, columns=['id']).to_csv(args.output_path, index=False)
