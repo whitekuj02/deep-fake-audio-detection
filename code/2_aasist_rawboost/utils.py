@@ -155,3 +155,28 @@ def set_seed(seed, config = None):
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = str_to_bool(config["cudnn_deterministic_toggle"])
         torch.backends.cudnn.benchmark = str_to_bool(config["cudnn_benchmark_toggle"])
+
+
+
+def create_exp(base_path="experiments"):
+    # 실험 폴더가 없으면 생성
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
+    
+    # 기존 폴더 확인
+    existing_folders = [d for d in os.listdir(base_path) if d.startswith("exp") and d[3:].isdigit()]
+    existing_folders.sort(key=lambda x: int(x[3:]))  # 숫자 순으로 정렬
+
+    # 새 폴더 이름 결정
+    if existing_folders:
+        last_exp_num = int(existing_folders[-1][3:])
+        new_exp_num = last_exp_num + 1
+    else:
+        new_exp_num = 1
+
+    new_exp_folder = f"exp{new_exp_num}"
+    new_exp_path = os.path.join(base_path, new_exp_folder)
+
+    # 새 폴더 생성
+    os.makedirs(new_exp_path)
+    return new_exp_path

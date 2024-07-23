@@ -19,7 +19,7 @@ from pathlib import Path
 from dacon_eval import dacon_score
 from importlib import import_module
 from typing import Dict, List, Union
-from utils import create_optimizer, seed_worker, set_seed, str_to_bool
+from utils import create_optimizer, seed_worker, set_seed, str_to_bool, create_exp
 from data_utils import Dataset_Dacon2024_train, Dataset_Dacon2024_devNeval, genSpoof_list
 
 import torch
@@ -41,12 +41,12 @@ def main(args: argparse.Namespace) -> None:
     # load experiment configurations
     with open(args.config, "r") as f_json:
         config = json.loads(f_json.read())
+
     model_config = config["model_config"]
     optim_config = config["optim_config"]
     optim_config["epochs"] = config["num_epochs"]
-    track = config["track"]
     alpha = 0
-    assert track in ["LA", "PA", "DF"], "Invalid track given"
+
     if "eval_all_best" not in config:
         config["eval_all_best"] = "True"
     if "freq_aug" not in config:
@@ -56,31 +56,28 @@ def main(args: argparse.Namespace) -> None:
     set_seed(args.seed, config)
 
     # define database related paths
-    output_dir = Path(args.output_dir)
     database_path = Path(config["database_path"])
     dev_trial_path = database_path / "val.csv"
     eval_trial_path = database_path / "test.csv"
 
     # define model related paths
-    model_tag = "{}_{}_ep{}_bs{}".format(
-        track,
-        os.path.splitext(os.path.basename(args.config))[0],
-        config["num_epochs"], config["batch_size"])
-    if args.comment:
-        model_tag = model_tag + "_{}".format(args.comment)
-    model_tag = output_dir / model_tag
+    model_tag = create_exp("experiments")
+    model_tag = Path(model_tag)
     model_save_path = model_tag / "weights"
     eval_score_path = model_tag / "test"
-    os.makedirs(eval_score_path, exist_ok=True)
-
+    metric_path = model_tag / "metrics"
+    
     writer = SummaryWriter(model_tag)
+
+    os.makedirs(eval_score_path, exist_ok=True)
     os.makedirs(model_save_path, exist_ok=True)
+    os.makedirs(metric_path, exist_ok=True)
     
     copy(args.config, model_tag / "config.conf")
 
     # set device
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print("Device: {}".format(device))
+    tqdm.write("Device: {}".format(device))
     if device == "cpu":
         raise ValueError("GPU not detected!")
 
@@ -95,10 +92,10 @@ def main(args: argparse.Namespace) -> None:
     if args.eval:
         model.load_state_dict(
             torch.load(config["model_path"], map_location=device))
-        print("Model loaded : {}".format(config["model_path"]))
-        print("Start evaluation...")
+        tqdm.write("Model loaded : {}".format(config["model_path"]))
+        tqdm.write("Start evaluation...")
         produce_evaluation_file(eval_loader, model, device, eval_score_path/f"submission.csv", eval_trial_path, alpha)
-        print("DONE.")
+        tqdm.write("DONE.")
         sys.exit(0)
 
     # get optimizer and scheduler
@@ -109,16 +106,10 @@ def main(args: argparse.Namespace) -> None:
     initial_alpha = 0.2  # 초기 alpha 값
     max_alpha = 0.8  # 최종 alpha 값
     n_swa_update = 0  # number of snapshots of model to use in SWA
-    f_log = open(model_tag / "metric_log.txt", "a")
-    f_log.write("=" * 5 + "\n")
-
-    # make directory for metric logging
-    metric_path = model_tag / "metrics"
-    os.makedirs(metric_path, exist_ok=True)
 
     # Training
     for epoch in range(config["num_epochs"]):
-        print("Start training epoch{:03d}".format(epoch))
+        tqdm.write("Start training epoch{:03d}".format(epoch))
         alpha = initial_alpha + (max_alpha - initial_alpha) * (epoch / config["num_epochs"])
         running_loss = train_epoch(trn_loader, unlabel_loader, model, optimizer, device,
                                    scheduler, config, alpha)
@@ -129,40 +120,37 @@ def main(args: argparse.Namespace) -> None:
                         submission_path=metric_path/"val_pred.csv"
                     )
 
-        print("DONE.\nLoss:{:.5f}, val_score: {:.3f}".format(running_loss, val_score))
+        tqdm.write("DONE.\nLoss:{:.5f}, val_score: {:.3f}".format(running_loss, val_score))
         writer.add_scalar("loss", running_loss, epoch)
         writer.add_scalar("val_score", val_score, epoch)
 
-        torch.save(model.state_dict(),
-                    model_save_path / "epoch_{}_{:03.3f}.pth".format(epoch, val_score))
+        torch.save(model.state_dict(), model_save_path / "params.pth")
 
         # do evaluation whenever best model is renewed
         if str_to_bool(config["eval_all_best"]):
             produce_evaluation_file(eval_loader, model, device,
-                                    eval_score_path/f"submission_ep{epoch}.csv", eval_trial_path, alpha)
-            mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score, config)
+                                    eval_score_path/"pre_submission.csv", eval_trial_path, alpha)
+            mask_zero(eval_score_path/"pre_submission.csv", epoch, eval_score_path)
 
-        print("Saving epoch {} for swa".format(epoch))
+        tqdm.write("Saving epoch {} for swa".format(epoch))
         optimizer_swa.update_swa()
         n_swa_update += 1
 
-    print("Start final evaluation")
+    tqdm.write("Start final evaluation")
     if n_swa_update > 0:
         optimizer_swa.swap_swa_sgd()
         combined_loader = itertools.chain(trn_loader, unlabel_loader)
         optimizer_swa.bn_update(combined_loader, model, device=device)
     
-    produce_evaluation_file(eval_loader, model, device, eval_score_path/"submission_last.csv", eval_trial_path, alpha)
-    mask_zero(eval_score_path/f"submission_ep{epoch}.csv", epoch, val_score, config)
-    torch.save(model.state_dict(),
-               model_save_path / "swa.pth")
+    produce_evaluation_file(eval_loader, model, device, eval_score_path/"pre_submission.csv", eval_trial_path, alpha)
+    mask_zero(eval_score_path/"pre_submission.csv", epoch, eval_score_path)
+    torch.save(model.state_dict(), model_save_path / "swa_params.pth")
 
-    print("Training / inference done.")
+    tqdm.write("Training / inference done.")
 
 
-def mask_zero(submission_path, ep, val_score, config):
+def mask_zero(submission_path, ep, eval_score_path):
     
-    ASSET_PATH = config["asset_path"]
 
     non_speeches = None
     with open(os.path.join("/root/data/nospeech.csv")) as f:
@@ -171,7 +159,7 @@ def mask_zero(submission_path, ep, val_score, config):
 
     if ep > 5 and ep <= 10:
         with open(os.path.join(submission_path), "r") as f, \
-             open(os.path.join(ASSET_PATH, "masked_submission-ep{}-val{}.csv".format(ep,val_score)), "w") as wf:
+             open(os.path.join(eval_score_path, "submission.csv".format(ep)), "w") as wf:
             
             wf.write(f.readline())
             for line in f.readlines():
@@ -181,7 +169,7 @@ def mask_zero(submission_path, ep, val_score, config):
                 wf.write("{},{},{}\n".format(_id, _fake, _real))
             wf.close()
 
-    print("Masking (post-processing) done!")
+    tqdm.write("Masking (post-processing) done!")
 
 
 
@@ -191,7 +179,7 @@ def get_model(model_config: Dict, device: torch.device):
     _model = getattr(module, "Model")
     model = _model(model_config).to(device)
     nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
-    print("no. model params:{}".format(nb_params))
+    tqdm.write("no. model params:{}".format(nb_params))
 
     return model
 
@@ -216,7 +204,7 @@ def get_loader(
     d_label_trn, file_train = genSpoof_list(dir_meta=trn_list_path,
                                             is_train=True,
                                             is_eval=False)
-    print("no. training files:", len(file_train))
+    tqdm.write(f"no. training files: {len(file_train)}")
     
 
     train_set = Dataset_Dacon2024_train(list_IDs=file_train,
@@ -236,7 +224,7 @@ def get_loader(
     _, file_dev = genSpoof_list(dir_meta=dev_trial_path,
                                 is_train=False,
                                 is_eval=False)
-    print("no. validation files:", len(file_dev))
+    tqdm.write(f"no. validation files: {len(file_dev)}")
 
     dev_set = Dataset_Dacon2024_devNeval(list_IDs=file_dev,
                                             base_dir=dev_database_path)
@@ -252,7 +240,7 @@ def get_loader(
                               is_eval=False,
                               is_unlabel=True)
 
-    print("no. unlabel files:", len(file_unlabel))
+    tqdm.write(f"no. unlabel files: {len(file_unlabel)}")
 
     unlabel_set = Dataset_Dacon2024_devNeval(list_IDs=file_unlabel,
                                              base_dir=domain_database_path)
@@ -268,7 +256,7 @@ def get_loader(
                               is_train=False,
                               is_eval=True)
     
-    print("no. test files:", len(file_eval))
+    tqdm.write(f"no. test files: {len(file_eval)}")
     eval_set = Dataset_Dacon2024_devNeval(list_IDs=file_eval,
                                              base_dir=eval_database_path)
     eval_loader = DataLoader(eval_set,
@@ -305,6 +293,7 @@ def produce_evaluation_file(
         fname_list.extend(utt_id)
         score_list.extend(batch_out.tolist())
 
+
     assert len(trial_lines) == len(fname_list) == len(score_list)
     with open(save_path, "w") as fh:
         fh.write("id,fake,real\n")
@@ -312,7 +301,7 @@ def produce_evaluation_file(
             metadata = trl.strip().split(",")
             audio_name = metadata[0]
             fh.write("{},{},{}\n".format(audio_name, fake, real))
-    print("Scores saved to {}".format(save_path))
+    tqdm.write("Scores saved to {}".format(save_path))
 
         
 def train_epoch(
@@ -372,6 +361,7 @@ def train_epoch(
             scaler.step(optim)
             scaler.update()
 
+
         if config["optim_config"]["scheduler"] in ["cosine", "keras_decay", "sgdr"]:
             scheduler.step()
         elif scheduler is None:
@@ -390,13 +380,6 @@ if __name__ == "__main__":
                         type=str,
                         help="configuration file",
                         required=True)
-    parser.add_argument(
-        "--output_dir",
-        dest="output_dir",
-        type=str,
-        help="output directory for results",
-        default="./aasist_rawboost",
-    )
     parser.add_argument("--seed",
                         type=int,
                         default=42,
@@ -405,10 +388,6 @@ if __name__ == "__main__":
         "--eval",
         action="store_true",
         help="when this flag is given, evaluates given model and exit")
-    parser.add_argument("--comment",
-                        type=str,
-                        default=None,
-                        help="comment to describe the saved model")
     parser.add_argument("--eval_model_weights",
                         type=str,
                         default=None,
