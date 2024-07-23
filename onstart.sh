@@ -1,1 +1,0 @@
-env | grep _ >> /etc/environment; echo 'starting up'
